@@ -27,3 +27,9 @@ class UserInfo(models.Model):
     updated = models.DateField(auto_now=True, blank=True, null=True)
     
     
+class BlockedIPAddress(models.Model):
+    ip_address = models.GenericIPAddressField(unique=True)
+    request_count = models.PositiveIntegerField(default=0)
+    
+    def __str__(self):
+        return self.ip_address

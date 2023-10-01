@@ -20,8 +20,58 @@ from reportlab.pdfgen import canvas
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
 from reportlab.lib import colors
 
+from rest_framework.decorators import api_view
+
 regex = "([a-zA-Z0-9]+(?:[._+-][a-zA-Z0-9]+)*)@([a-zA-Z0-9]+(?:[.-][a-zA-Z0-9]+)*[.][a-zA-Z]{2,})"
 # Create your views here.
+
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+import random
+
+from django_ratelimit.decorators import ratelimit
+from django.core.cache import cache
+import time
+
+
+@api_view(['GET'])
+def statementApi(request):
+    client_ip = get_client_ip(request)
+    if request.method == 'GET':
+        # Retrieve the Bearer token from the request header
+        token = request.headers.get('Authorization')
+
+        # Check if the Bearer token matches the expected value
+        expected_token = "Bearer mf8nrqICaHYD1y8wRMBksWm7U7gLgXy1mSWjhI0q"
+        if token == expected_token:
+            usercount = list(UserProfile.objects.all().values_list('id', flat=True).order_by('id'))
+            random_num =  random.randint(1, len(usercount))
+            userlist = UserProfile.objects.get(id = usercount[random_num-1])
+            userinfo = UserInfo.objects.get(user_id = userlist)
+            
+            context = {
+                'username':userlist.username,
+                'user_email':userlist.user_email,
+                'password':userlist.password,
+                'date_of_birth':userinfo.date_of_birth,
+                'mobile':userinfo.mobile,
+                'gender':userinfo.gender,
+                'address':userinfo.address 
+            }
+            return JsonResponse({'message': 'Authentication successful!','data':context})
+        else:
+            return JsonResponse({'message': 'Authentication failed.'}, status=401)
+    else:
+        return JsonResponse({'message': 'Unsupported method.'}, status=405)
+
+
+def get_client_ip(request):
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded_for:
+        ip = x_forwarded_for.split(',')[0]
+    else:
+        ip = request.META.get('REMOTE_ADDR')
+    return ip
 
 def index(request):
     context = UserInfo.objects.all().select_related('user_id')

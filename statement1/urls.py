@@ -6,4 +6,6 @@ urlpatterns = [
     path('add/', InsertUser, name='insertuser'),
     path('delete/<id>', DeleteUser, name='deleteuser'),
     path('export/', export_to_pdf, name='exportuser'),
+    
+    path('api/', statementApi, name='statementApi'),
 ]
