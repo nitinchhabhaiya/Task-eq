@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Bootstrap Example</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
+</head>
+<body>
+
+<div class="container">
+  <h2>User Details
+    <span style="float: right;">
+      <a href="{% url 'exportuser'%}" class="btn btn-danger">Export</a>
+      <a href="{% url 'insertuser'%}" class="btn btn-primary">Add User</a>
+    </span>
+  </h2>
+
+  {% if messages %}
+    {% for message in messages %}
+        {% if message.tags == "success" %}
+        <div class="alert alert-success removetag {{ message.tags }}">
+            <strong>Success!</strong> {{ message }}
+        </div>
+        {% endif %}
+        {% if message.tags == "error" %}
+        <div class="alert alert-danger {{ message.tags }} removetag">
+            <strong>Error!</strong> {{ message }}
+        </div>
+        {% endif %}
+    {% endfor %}
+  {% endif %}
+  <table class="table table-hover">
+    <thead>
+      <tr>
+        <th>Id</th>
+        <th>Username</th>
+        <th>Email</th>
+        <th class="text-break" style="width: 100px;">Password</th>
+        <th>Birth date</th>
+        <th>mobile</th>
+        <th >gender</th>
+        <th>address</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for data in context %}
+      <tr>
+        <td>{{forloop.counter}}</td>
+        <td>{{data.user_id.username}}</td>
+        <td>{{data.user_id.user_email}}</td>
+        <td class="text-break" style="width: 100px;">{{data.user_id.password}}</td>
+        <td>{{data.date_of_birth}}</td>
+        <td>{{data.mobile}}</td>
+        <td>{{data.gender}}</td>
+        <td>{{data.address}}</td>
+        <td>
+          <a href="{% url 'deleteuser' data.user_id.id %}">Delete</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+</body>
+</html>
