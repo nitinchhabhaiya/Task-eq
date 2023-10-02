@@ -1,0 +1,60 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Practical</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
+</head>
+<body>
+
+<div class="container">
+  <h2>Upload PDF</h2>
+
+  {% if messages %}
+    {% for message in messages %}
+        {% if message.tags == "success" %}
+        <div class="alert alert-success removetag {{ message.tags }}">
+            <strong>Success!</strong> {{ message }}
+        </div>
+        {% endif %}
+        {% if message.tags == "error" %}
+        <div class="alert alert-danger {{ message.tags }} removetag">
+            <strong>Error!</strong> {{ message }}
+        </div>
+        {% endif %}
+    {% endfor %}
+  {% endif %}
+
+  <form class="form-horizontal" method="POST" action="{% url 'uploadpdf' %}" enctype="multipart/form-data">
+    {% csrf_token %}
+    <div class="form-group">
+      <label class="control-label col-sm-2" for="pdf_file">User Name:</label>
+      <div class="col-sm-10">
+        <input type="file" class="form-control" id="pdf_file" placeholder="Enter Username" name="pdf_file" accept="application/pdf">
+      </div>
+    </div>
+
+    {% if url %}
+    <div class="form-group">
+      <label class="control-label col-sm-2" for="pdf_file">Watermark PDF :</label>
+      <div class="col-sm-10">
+        <span><a href="/media/pdf/{{ url }}" class="btn btn-primary" Download>Download</a></span>
+      </div>
+    </div>
+    {% endif %}
+    
+    <div class="form-group">        
+      <div class="col-sm-offset-2 col-sm-10">
+        <button type="submit" class="btn btn-primary">Upload</button>
+      </div>
+    </div>
+  </form>
+
+</div>
+
+</body>
+</html>

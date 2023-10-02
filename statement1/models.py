@@ -33,3 +33,10 @@ class BlockedIPAddress(models.Model):
     
     def __str__(self):
         return self.ip_address
+    
+    
+class PDFFile(models.Model):
+    pdf_file = models.FileField(upload_to='pdf/')
+    
+    def __str__(self):
+        return self.pdf_file

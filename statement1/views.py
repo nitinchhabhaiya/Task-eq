@@ -21,10 +21,6 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
 from reportlab.lib import colors
 
 from rest_framework.decorators import api_view
-
-regex = "([a-zA-Z0-9]+(?:[._+-][a-zA-Z0-9]+)*)@([a-zA-Z0-9]+(?:[.-][a-zA-Z0-9]+)*[.][a-zA-Z]{2,})"
-# Create your views here.
-
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 import random
@@ -33,10 +29,21 @@ from django_ratelimit.decorators import ratelimit
 from django.core.cache import cache
 import time
 
+from django.conf import settings
+import os
+import PyPDF2
+from PyPDF2 import PageObject
+from reportlab.lib.units import inch
+from reportlab.lib.pagesizes import A4
+
+from django.core.files.storage import FileSystemStorage
+
+
+regex = "([a-zA-Z0-9]+(?:[._+-][a-zA-Z0-9]+)*)@([a-zA-Z0-9]+(?:[.-][a-zA-Z0-9]+)*[.][a-zA-Z]{2,})"
+# Create your views here.
 
 @api_view(['GET'])
 def statementApi(request):
-    client_ip = get_client_ip(request)
     if request.method == 'GET':
         # Retrieve the Bearer token from the request header
         token = request.headers.get('Authorization')
@@ -63,15 +70,6 @@ def statementApi(request):
             return JsonResponse({'message': 'Authentication failed.'}, status=401)
     else:
         return JsonResponse({'message': 'Unsupported method.'}, status=405)
-
-
-def get_client_ip(request):
-    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-    if x_forwarded_for:
-        ip = x_forwarded_for.split(',')[0]
-    else:
-        ip = request.META.get('REMOTE_ADDR')
-    return ip
 
 def index(request):
     context = UserInfo.objects.all().select_related('user_id')
@@ -108,31 +106,13 @@ def DeleteUser(request,id):
     return redirect("index")
 
 
-# def ExportUser(request):
-#     context = UserInfo.objects.all().select_related('user_id')
-#     return render_pdf("export-pdf.html",{'context':context})
-
-# def render_pdf(template_path, context):
-#     template = get_template(template_path)
-#     html = template.render(context)
-#     result = BytesIO()
-#     pdf = pisa.pisaDocument(BytesIO(html.encode("UTF-8")), result)
-
-#     if not pdf.err:
-#         response = HttpResponse(result.getvalue(), content_type='application/pdf')
-#         response['Content-Disposition'] = 'filename="exported_table.pdf"'
-#         return response
-
-
 def export_to_pdf(request):
-    # Your code to retrieve table data goes here (replace this example data)
     table_data = []
     table_headar = ['Id','Username','Email','Password','Birth date','Mobile','Gender','Address']
     table_data.append(table_headar)
     context = UserProfile.objects.all().values()
     i = 1
     for value in context:
-        print(value['id'])
         UserList = UserInfo.objects.get(user_id = value['id'])
         output = [f'{i}',value['username'],value['user_email'],value['password'],UserList.date_of_birth,UserList.mobile,UserList.gender,UserList.address]
         table_data.append(output)
@@ -165,8 +145,6 @@ def export_to_pdf(request):
     doc.build(elements)
     return response
 
-
-
 def EncryptBase64(EncryptData):
     try:
         if EncryptData :
@@ -192,3 +170,75 @@ def DecryptBase64(DecryptData):
     except:
         error = "Invalid Parameter!!"
         return error
+
+def uploadPdf(request):
+    if request.method == 'POST':
+        pdf_file = request.FILES['pdf_file']
+        if pdf_file:
+            
+            pdf_folder_path = os.path.join(settings.BASE_DIR,"media/pdf/")
+            fs = FileSystemStorage(location = os.path.join(settings.BASE_DIR,"media/pdf/"))
+            filename = fs.save(pdf_file.name, pdf_file)
+            pdf_path = pdf_folder_path + filename
+            
+            # Add watermark to the PDF file
+            watermark_pdf(pdf_path)
+
+            output_pdf_path = pdf_path.replace('.pdf', '_watermarked_protected.pdf')
+            PDFFile.objects.create(pdf_file=os.path.basename(output_pdf_path))
+            return render(request, 'pdf-file.html',{'url':os.path.basename(output_pdf_path)})
+        
+    return render(request, 'pdf-file.html')
+
+def watermark_pdf(pdf_file_path):
+    # Add a watermark to the PDF file
+    output_pdf_path = pdf_file_path.replace('.pdf', '_watermarked.pdf')
+
+    pdf_reader = PyPDF2.PdfFileReader(open(pdf_file_path, 'rb'))
+    pdf_writer = PyPDF2.PdfFileWriter()
+
+    watermark = create_watermark_pdf()  # Create the watermark PDF
+
+    for page_num in range(pdf_reader.getNumPages()):
+        page = pdf_reader.getPage(page_num)
+        # page.mergeTranslatedPage(page, 0, page.mediaBox.getHeight(), 1)
+        page.mergePage(PageObject.createBlankPage(width=page.mediaBox.getWidth(), height=page.mediaBox.getHeight()))
+        page.mergePage(watermark.getPage(0))
+        pdf_writer.addPage(page)
+
+    with open(output_pdf_path, 'wb') as output_pdf:
+        pdf_writer.write(output_pdf)
+        
+    password = "12345"
+    if password:
+        password_protect_pdf(output_pdf_path, password)
+
+def create_watermark_pdf():
+    buffer = BytesIO()
+    text = "eQuest Solution"
+    pdf = canvas.Canvas(buffer)
+    pdf.translate(inch, inch)
+    pdf.setFillColor(colors.grey, alpha=0.6)
+    pdf.setFont("Helvetica", 50)
+    pdf.rotate(45)
+    pdf.drawCentredString(400, 100, text)
+    pdf.save()
+
+    buffer.seek(0)
+    watermark_pdf = PyPDF2.PdfFileReader(buffer)
+    return watermark_pdf
+
+def password_protect_pdf(pdf_file_path, password):
+    # Make the PDF password-protected
+    output_pdf_path = pdf_file_path.replace('.pdf', '_protected.pdf')
+
+    pdf_reader = PyPDF2.PdfFileReader(open(pdf_file_path, 'rb'))
+    pdf_writer = PyPDF2.PdfFileWriter()
+
+    for page_num in range(pdf_reader.getNumPages()):
+        page = pdf_reader.getPage(page_num)
+        pdf_writer.addPage(page)
+
+    pdf_writer.encrypt(user_pwd=password, use_128bit=True)
+    with open(output_pdf_path, 'wb') as output_pdf:
+        pdf_writer.write(output_pdf)
